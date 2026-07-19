@@ -335,18 +335,9 @@ The system does not run a full selection pass every frame.
 
 NPC switches are collected during evaluation and applied afterward, avoiding mutation of the usage map while it is being traversed.
 
-## Decision observability
+## Runtime debugging
 
-Each successful selection can record:
-
-- The chosen object and utility score.
-- Per-need score contributions.
-- Current and forecast values.
-- Urgency values.
-- Distance penalty and social bonus.
-- Rejected alternatives and their scores.
-
-The private plugin includes an HTTP debug subsystem that can expose this data as JSON and serve a local decision dashboard when its front-end assets are present. In-world debug drawing can also visualize slot transforms, Free/Reserved/Occupied state, spatial checks, and the NPC associated with a slot.
+Console-controlled logs can trace candidate rejection, effect contributions, reservation attempts, and switching decisions. In-world debug drawing can visualize slot transforms, Free/Reserved/Occupied state, spatial checks, and the NPC associated with a slot.
 
 ## How it composes with AbolethSM
 
@@ -380,7 +371,7 @@ That separation prevents the state machine from becoming a scoring engine and pr
 | Runtime effect ownership | Source-tracked influences are registered on join and removed on leave |
 | Controlled reevaluation | Minimum/maximum usage time, interval checks, optional random checks, and deferred switching |
 | Blueprint integration | Blueprint-callable selection, stat access, lifecycle events, delegates, and overridable availability |
-| Observability | Per-decision breakdown data, HTTP/JSON debug support, console controls, and world visualization |
+| Debuggability | Console-controlled evaluation logs and in-world slot, occupancy, spatial-check, and NPC visualization |
 
 ## Current limitations and next steps
 
@@ -388,7 +379,6 @@ That separation prevents the state machine from becoming a scoring engine and pr
 - Decide how forecast values should affect selection and validate that behavior independently from current-urgency scoring.
 - Profile large NPC and Smart Object populations, then introduce spatial indexing if linear candidate gathering becomes a bottleneck.
 - Cache repeated Data Table lookups and other stable definition data where profiling justifies it.
-- Package the optional dashboard front end with the plugin rather than relying on project-level content.
 - Continue reducing development-only logging in production configurations.
 
 ---
