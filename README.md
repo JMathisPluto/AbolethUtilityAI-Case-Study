@@ -310,13 +310,15 @@ The Stats component combines all active influences affecting the same attribute.
 The slot lifecycle is explicit:
 
 ```mermaid
-stateDiagram-v2
-    [*] --> Free
-    Free --> Reserved: selection
-    Reserved --> Occupied: NPC arrives
-    Reserved --> Free: abandon or validation failure
-    Occupied --> Free: NPC leaves
+flowchart TD
+    A["Free"] -->|"Select"| B["Reserved"]
+    B -->|"Claim on arrival"| C["Occupied"]
+    B -->|"Cancel"| D["Release slot"]
+    C -->|"Leave"| D
+    D --> A
 ```
+
+Cancellation returns a reservation to Free when the NPC abandons it or final spatial validation fails. Leaving releases an Occupied slot through the same cleanup path.
 
 Joining and leaving also broadcast Blueprint delegates, call overridable events, update subsystem usage tracking, and activate or stop the Smart Object’s custom state behavior.
 
