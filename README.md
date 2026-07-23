@@ -2,15 +2,43 @@
 
 ### A tag-driven NPC decision and Smart Object system for Unreal Engine
 
-Aboleth Utility AI lets NPCs evaluate world interactions according to their current needs, persistent traits, temporary conditions, distance, social context, and slot compatibility. It combines a typed character-stat model with data-driven Smart Objects, curve-based urgency, source-tracked effects, periodic reevaluation, and Blueprint-facing APIs.
+Aboleth Utility AI is a work-in-progress system for NPCs that make decisions from their needs, personality, current state, and the opportunities available around them. Characters decide **what** they want to do; Smart Objects describe and control **how** that activity works.
+
+## What this means in plain English
+
+Each NPC is described with four kinds of data:
+
+- **Motives** are changing needs such as Thirst, Hunger, Energy, and Fun.
+- **Stats** are numeric values that describe other parts of the NPC's current state.
+- **Traits** are persistent parts of the NPC's personality that change how it values activities.
+- **Conditions** are temporary states activated when Motives or Stats cross configured thresholds.
+
+For example, consider an NPC with an urgent **Thirst Motive** and the persistent **Alcoholic Trait**. Water and beer can both satisfy Thirst, but the Trait increases the NPC's perceived value of beer. If the beer is reasonably close, it may outrank the water even though both address the same need.
+
+Drinking beer also raises an **Intoxication Stat**. Once that value crosses a configured threshold, the system activates the temporary **Drunk Condition**. That Condition changes later decisions: a tree-climbing activity that normally has little value can become entertaining enough to select while the NPC is drunk.
+
+```text
+Thirst becomes urgent
+    + Alcoholic Trait changes perception
+    -> Beer outranks Water
+    -> Beer raises Intoxication
+    -> Intoxication activates Drunk
+    -> Drunk makes climbing the Tree attractive
+```
+
+There is no NPC-specific rule that says, "If drunk, climb a tree." Data Tables describe the NPC attributes, thresholds, and Smart Object effects. Gameplay Tags connect those definitions, and the Utility system discovers the behavior from the current combination of character and world state.
+
+Once an activity is chosen, the Smart Object's Blueprint or embedded **AbolethSM** state machine can coordinate the complete interaction for every NPC using that object. This follows the object-centered approach popularized by *The Sims*: world objects advertise useful behavior and own the scripts needed to perform it. See [Programming Objects in The Sims](https://users.cs.northwestern.edu/~forbus/c95-gd/2001/Programming%20Objects%20in%20The%20Sims.pdf) for a technical description of that model.
+
+Under the hood, Aboleth Utility AI combines a typed character-stat model with data-driven Smart Objects, curve-based urgency, source-tracked effects, periodic reevaluation, and Blueprint-facing APIs.
 
 > **Source status:** Private production code. This case study uses small, abridged excerpts to explain the engineering without distributing the complete implementation.
 
 ## Project context
 
-The system is part of the Aboleth gameplay framework and is designed for simulation-driven NPC behavior. It composes directly with **AbolethSM**: a state machine can request the best Smart Object, move toward the reserved slot, use the object, and return for another decision.
+The system is part of the Aboleth gameplay framework and is designed for simulation-driven NPC behavior. Utility AI chooses and reserves an opportunity. After the NPC reaches its assigned slot, the Smart Object's Blueprint or embedded **AbolethSM** state machine owns the interaction logic for every NPC using that object.
 
-The goal is not to script one fixed behavior tree. Designers describe what an NPC needs, what an object provides, and who can use each slot. The runtime resolves the best valid interaction from the current world state.
+The goal is not to script one fixed behavior tree inside every NPC. Designers describe what an NPC needs, what an object provides, who can use each slot, and how that object behaves once selected. The runtime resolves the best valid interaction from the current world state.
 
 ## Project snapshot
 
@@ -32,8 +60,8 @@ flowchart LR
     C --> D["Filter Smart Objects<br/>tags + slots + space + radius"]
     D --> E["Score valid candidates<br/>urgency + perception + context"]
     E --> F["Reserve best available slot"]
-    F --> G["Move to and use object"]
-    G --> H["Apply object effects"]
+    F --> G["Move to assigned slot"]
+    G --> H["Smart Object controls interaction<br/>for all participating NPCs"]
     H --> I["Reevaluate or leave"]
     I --> B
 ```
@@ -58,9 +86,9 @@ A Smart Object definition describes:
 
 The Utility subsystem gathers registered Smart Objects, removes candidates the NPC cannot use, scores the remaining choices, sorts them by utility, and attempts to reserve a compatible slot.
 
-### 4. Execute through the state machine
+### 4. Hand control to the Smart Object
 
-The resulting object and slot are passed to gameplay. AbolethSM can own the readable behavior sequence—find, move, use, leave—while Utility AI decides which world opportunity currently makes the most sense.
+The resulting object and reserved slot are passed to gameplay. After the NPC reaches and claims that slot, the Smart Object's Blueprint or embedded AbolethSM graph controls the interaction. One object can therefore coordinate the behavior of every NPC assigned to its slots instead of duplicating that activity logic across the NPC classes.
 
 ## Attribute model
 
@@ -341,22 +369,22 @@ Console-controlled logs can trace candidate rejection, effect contributions, res
 
 ## How it composes with AbolethSM
 
-The two systems own different decisions:
+The systems have separate responsibilities:
 
 ```mermaid
 flowchart LR
-    A["AbolethSM<br/>What phase is active?"] --> B["Find Smart Object state"]
-    B --> C["Utility AI<br/>Which opportunity is best?"]
-    C --> D["Object + reserved slot + score"]
-    D --> E["Move state"]
-    E --> F["Use state"]
-    F --> G["Leave or reevaluate"]
-    G --> B
+    A["NPC requests an activity"] --> B["Utility AI<br/>Which opportunity is best?"]
+    B --> C["Smart Object + reserved slot"]
+    C --> D["NPC moves to assigned slot"]
+    D --> E["Smart Object AbolethSM<br/>controls the interaction"]
+    E --> F["Coordinate all participating NPCs"]
+    F --> G["Apply effects and release slots"]
+    G --> A
 ```
 
-AbolethSM keeps temporal behavior readable. Utility AI ranks world opportunities. Smart Objects own interaction capacity and effects. The Stats component owns character state.
+Utility AI ranks world opportunities. The Stats component owns character state. Smart Objects own interaction capacity, effects, and the activity itself. AbolethSM gives complex Smart Objects a readable way to organize phases such as waiting, starting, active use, participant changes, completion, and cooldown.
 
-That separation prevents the state machine from becoming a scoring engine and prevents the Utility subsystem from becoming a movement or animation controller.
+That separation prevents the Smart Object state machine from becoming a scoring engine and prevents the Utility subsystem from accumulating object-specific animation, timing, and multi-participant behavior.
 
 ## Current evidence
 
